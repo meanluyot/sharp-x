@@ -12,6 +12,35 @@ app.get("/sharp", async (c) => {
     return c.text("URL and width are required", 400);
   }
 
+  const allowedDomainsStr = process.env.ALLOWED_DOMAINS || "[]";
+  let allowedDomains: string[] = [];
+  try {
+    allowedDomains = JSON.parse(allowedDomainsStr);
+  } catch (e) {
+    console.error("Failed to parse ALLOWED_DOMAINS:", e);
+  }
+
+  if (allowedDomains.length > 0) {
+    try {
+      const imageUrl = new URL(url);
+      const hostname = imageUrl.hostname;
+
+      const isAllowed = allowedDomains.some((domain) => {
+        if (domain.startsWith("*.")) {
+          const baseDomain = domain.slice(2);
+          return hostname === baseDomain || hostname.endsWith("." + baseDomain);
+        }
+        return hostname === domain;
+      });
+
+      if (!isAllowed) {
+        return c.text("Domain not allowed", 403);
+      }
+    } catch (e) {
+      return c.text("Invalid URL", 400);
+    }
+  }
+
   try {
     const response = await fetch(url);
     if (!response.ok) {
@@ -27,23 +56,23 @@ app.get("/sharp", async (c) => {
     });
 
     // Determine output format based on Accept header or default to webp
-    const accept = c.req.header("accept") || "";
+    // const accept = c.req.header("accept") || "";
     let format: keyof sharp.FormatEnum = "webp";
     let mimeType = "image/webp";
 
-    if (accept.includes("image/avif")) {
-      format = "avif";
-      mimeType = "image/avif";
-    } else if (accept.includes("image/webp")) {
-      format = "webp";
-      mimeType = "image/webp";
-    } else if (contentType === "image/jpeg" || contentType === "image/jpg") {
-      format = "jpeg";
-      mimeType = "image/jpeg";
-    } else if (contentType === "image/png") {
-      format = "png";
-      mimeType = "image/png";
-    }
+    // if (accept.includes("image/avif")) {
+    //   format = "avif";
+    //   mimeType = "image/avif";
+    // } else if (accept.includes("image/webp")) {
+    //   format = "webp";
+    //   mimeType = "image/webp";
+    // } else if (contentType === "image/jpeg" || contentType === "image/jpg") {
+    //   format = "jpeg";
+    //   mimeType = "image/jpeg";
+    // } else if (contentType === "image/png") {
+    //   format = "png";
+    //   mimeType = "image/png";
+    // }
 
     const outputBuffer = await transformer.toFormat(format, { quality }).toBuffer();
 
@@ -66,4 +95,11 @@ app.get("/", (c) => {
   return c.text(welcomeStrings.join("\n\n"));
 });
 
-export default app;
+const port = parseInt(process.env.PORT || "3000", 10);
+console.log(`Server starting on port ${port}...`);
+console.log(`Allowed domains: ${process.env.ALLOWED_DOMAINS || "All"}`);
+
+export default {
+  port,
+  fetch: app.fetch,
+};

@@ -1,6 +1,11 @@
 {
   "compilerOptions": {
-    "types": ["bun"],
+    "types": [
+      "bun"
+    ],
+    "esModuleInterop": true,
   },
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }
